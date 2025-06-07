@@ -1,95 +1,73 @@
-import Image from "next/image";
+'use client'
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { ref, get } from "firebase/database";
+import { auth, db } from "./firebase"; 
 import styles from "./page.module.css";
 
-export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.js</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+export default function LoginPage() {
+  const router = useRouter();
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  const [datos, setDatos] = useState({ correo: "", contraseña: "" });
+  const [error, setError] = useState("");
+
+  const handleChange = (e) => {
+    setDatos({ ...datos, [e.target.name]: e.target.value });
+  };
+
+  const handleLogin = async () => {
+    const { correo, contraseña } = datos;
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, correo, contraseña);
+      const user = userCredential.user;
+      const uid = user.uid;
+
+      // Obtener el rol desde Realtime Database
+      const rolRef = ref(db, `usuarios/${uid}`);
+      console.log("UID autenticado:", uid);
+
+const snapshot = await get(rolRef);
+console.log("Snapshot raw:", snapshot);
+console.log("Snapshot.val():", snapshot.val());
+
+      if (snapshot.exists()) {
+        const { rol } = snapshot.val();
+
+        // Redirigir con UID y rol en query string
+        router.push(`/lobby?uid=${uid}&rol=${rol}&email=${correo}`);
+      } else {
+        setError("Tu cuenta no tiene rol asignado.");
+      }
+    } catch (err) {
+      setError("Correo o contraseña incorrectos.");
+    }
+  };
+
+  return (
+    <div className={styles.loginContainer}>
+      <p className={styles.titulo}>Iniciar Sesión</p>
+
+      <input
+        className={styles.input}
+        type="email"
+        placeholder="Correo"
+        name="correo"
+        value={datos.correo}
+        onChange={handleChange}
+      />
+      <input
+        className={styles.input}
+        type="password"
+        placeholder="Contraseña"
+        name="contraseña"
+        value={datos.contraseña}
+        onChange={handleChange}
+      />
+      <button className={styles.boton} onClick={handleLogin}>Ingresar</button>
+
+      {error && <p className={styles.error}>{error}</p>}
     </div>
   );
 }
